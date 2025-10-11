@@ -1,0 +1,98 @@
+.olvidar-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #fff;
+}
+
+.olvidar-card {
+  position: relative; 
+  background-color: #3f4e6b;
+  padding: 40px;
+  border-radius: 12px;
+  width: 420px;
+  color: white;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  animation: fadeIn 0.6s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.olvidar-title {
+  text-align: left;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.btn-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: #fff;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.btn-close:hover {
+  color: #ffcccc;
+}
+
+/* Inputs */
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.field-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+  border: none;
+  background-color: #7c8595;
+  color: white;
+}
+
+.field-input:focus {
+  outline: none;
+  background-color: #929aad;
+  box-shadow: 0 0 0 2px #d4c6ff;
+}
+
+/* Botón enviar */
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.btn-submit:hover {
+  transform: scale(1.03);
+}
+
+.notif-text {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #d4f8d4;
+}
+
+.info-text {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: #ccc;
+}
