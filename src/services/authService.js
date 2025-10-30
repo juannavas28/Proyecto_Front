@@ -1,11 +1,11 @@
 // src/services/authService.js
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/auth";
+const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 // Configurar axios con interceptores para manejar tokens
 const api = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: `${import.meta.env.VITE_API_URL}/api/auth`, // ✅ ajustado para mantener coherencia en endpoints /auth/*
   headers: {
     "Content-Type": "application/json",
   },
@@ -42,13 +42,11 @@ api.interceptors.response.use(
 export const loginUser = async (correo, contrasena) => {
   try {
     console.log("📤 Enviando datos de login:", { correo, contrasena });
-    const response = await axios.post(`${API_URL}/login`, { correo, contrasena });
-    
+    const response = await api.post(`/login`, { correo, contrasena }); // ✅ usa el mismo api con interceptor
     if (response.data.success) {
       localStorage.setItem("token", response.data.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.data.user));
     }
-    
     return response.data;
   } catch (error) {
     console.error("Error al iniciar sesión:", error);
@@ -58,20 +56,23 @@ export const loginUser = async (correo, contrasena) => {
 
 // HU3.1 - Registro de usuarios
 export const registerUser = async (userData) => {
-  try {
-    console.log("📤 Enviando datos de registro:", userData);
-    const response = await axios.post(`${API_URL}/register`, userData);
-    return response.data;
-  } catch (error) {
-    console.error("Error al registrar:", error);
-    throw error.response?.data || { message: "Error al conectar con el servidor" };
-  }
+  const payload = {
+    email: userData.correo,
+    password: userData.contrasena,
+    nombre: userData.nombre,
+    apellido: userData.apellido || null,
+    telefono: userData.telefono || null,
+    rol: userData.rol || 'organizador',
+  };
+  const resp = await api.post(`/register`, payload);
+  return resp.data;
 };
+
 
 // HU3.3 - Obtener información del usuario actual
 export const getCurrentUser = async () => {
   try {
-    const response = await api.get("/auth/me");
+    const response = await api.get(`/me`);
     return response.data;
   } catch (error) {
     console.error("Error al obtener usuario actual:", error);
@@ -82,7 +83,7 @@ export const getCurrentUser = async () => {
 // HU3.4 - Recuperación de credenciales
 export const forgotPassword = async (correo) => {
   try {
-    const response = await axios.post(`${API_URL}/forgot-password`, { email: correo });
+    const response = await api.post(`/forgot-password`, { email: correo });
     return response.data;
   } catch (error) {
     console.error("Error al solicitar recuperación:", error);
@@ -92,7 +93,7 @@ export const forgotPassword = async (correo) => {
 
 export const resetPassword = async (token, newPassword) => {
   try {
-    const response = await axios.post(`${API_URL}/reset-password`, { token, newPassword });
+    const response = await api.post(`/reset-password`, { token, newPassword });
     return response.data;
   } catch (error) {
     console.error("Error al restablecer contraseña:", error);
@@ -103,14 +104,12 @@ export const resetPassword = async (token, newPassword) => {
 // HU3.3 - Actualizar perfil de usuario
 export const updateProfile = async (profileData) => {
   try {
-    const response = await api.put("/auth/profile", profileData);
-    
+    const response = await api.put(`/profile`, profileData);
     if (response.data.success) {
       // Actualizar el usuario en localStorage con los nuevos datos
       const updatedUser = response.data.data.user;
       localStorage.setItem("user", JSON.stringify(updatedUser));
     }
-    
     return response.data;
   } catch (error) {
     console.error("Error al actualizar perfil:", error);
