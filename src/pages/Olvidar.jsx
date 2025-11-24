@@ -1,32 +1,53 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { forgotPassword } from "../services/authService";
 import "./Olvidar.css";
 
 const Olvidar = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage("");
+    setError("");
 
-    if (!email) {
-      setMessage(" Por favor ingresa tu correo electrónico.");
+    const eMail = (email || "").trim();
+    if (!eMail) {
+      setError("Por favor ingresa tu correo electrónico.");
       return;
     }
 
-    setMessage(" Se ha enviado un correo para recuperar tu contraseña.");
+    // Validar que sea correo institucional @uao.edu.co
+    if (!eMail.endsWith('@uao.edu.co')) {
+      setError("Solo se permiten correos institucionales (@uao.edu.co)");
+      return;
+    }
 
-    // Redirige al login después de 2s
-    setTimeout(() => {
-      navigate("/login");
-    }, 2000);
+    try {
+      setLoading(true);
+      const result = await forgotPassword(eMail);
+      if (result.success) {
+        setMessage("✅ Se ha enviado un enlace a tu correo para restablecer tu contraseña. Revisa tu bandeja de entrada o spam.");
+        setTimeout(() => {
+          navigate("/login");
+        }, 3000);
+      } else {
+        setError(result.message || "No fue posible procesar la solicitud");
+      }
+    } catch (err) {
+      setError(err.message || "Error al conectar con el servidor");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="olvidar-wrapper">
       <div className="olvidar-card">
-        {/* Botón cerrar */}
         <button className="btn-close" onClick={() => navigate("/login")}>
           ✕
         </button>
@@ -38,20 +59,22 @@ const Olvidar = () => {
           <input
             className="field-input"
             type="email"
-            placeholder="Ingrese su correo"
+            placeholder="usuario@uao.edu.co"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
           />
 
-          <button className="btn-submit" type="submit">
-            Enviar
+          <button className="btn-submit" type="submit" disabled={loading}>
+            {loading ? "Enviando..." : "Enviar"}
           </button>
         </form>
 
         {message && <p className="notif-text">{message}</p>}
+        {error && <p className="error-text">{error}</p>}
 
         <p className="info-text">
-          Cuando presiones el botón recibirás un correo recordándote tu contraseña.
+          Recibirás un enlace válido por 30 minutos para crear una nueva contraseña.
         </p>
       </div>
     </div>

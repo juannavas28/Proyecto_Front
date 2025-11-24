@@ -1,9 +1,12 @@
 // src/services/organizationService.js
 import axios from "axios";
 
-// ✅ Configurar axios con la variable de entorno
+// ✅ Configurar axios con la variable de entorno con fallback
+const API_BASE = (import.meta?.env?.VITE_API_URL)
+  || (typeof window !== 'undefined' && window.__API_URL__)
+  || 'http://localhost:3000';
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/api/organizations`,
+  baseURL: `${API_BASE}/api/organizations`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -24,22 +27,17 @@ api.interceptors.request.use(
 // HU2.1 - Registro de organización externa
 export const createOrganization = async (organizationData) => {
   try {
-    // 🔹 Si hay un archivo PDF, usamos FormData
-    const hasFile = organizationData.certificado_pdf instanceof File;
-
+    // Si ya viene como FormData, enviarlo directamente
+    const isFormData = organizationData instanceof FormData;
+    
     let dataToSend = organizationData;
     let headers = {};
 
-    if (hasFile) {
-      const formData = new FormData();
-      Object.keys(organizationData).forEach((key) => {
-        formData.append(key, organizationData[key]);
-      });
-      dataToSend = formData;
+    if (isFormData) {
       headers["Content-Type"] = "multipart/form-data";
     }
 
-    const response = await api.post("/", dataToSend, { headers }); // ✅ ajustado
+    const response = await api.post("/", dataToSend, { headers });
     return response.data;
   } catch (error) {
     console.error("Error al crear organización:", error);
@@ -91,6 +89,28 @@ export const updateOrganization = async (id, organizationData) => {
     return response.data;
   } catch (error) {
     console.error("Error al actualizar organización:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// HU2.5 - Listar todas las organizaciones externas
+export const getAllOrganizations = async (page = 1, limit = 10) => {
+  try {
+    const response = await api.get("/", { params: { page, limit } });
+    return response.data;
+  } catch (error) {
+    console.error("Error al obtener todas las organizaciones:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// HU2.6 - Eliminar organización externa
+export const deleteOrganization = async (id) => {
+  try {
+    const response = await api.delete(`/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error al eliminar organización:", error);
     throw error.response?.data || { message: "Error al conectar con el servidor" };
   }
 };

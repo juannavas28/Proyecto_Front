@@ -8,11 +8,13 @@ import "./CreateOrganization.css";
 const CreateOrganization = () => {
   const [form, setForm] = useState({
     nombre: "",
+    nit: "",
     representante_legal: "",
     telefono: "",
+    email: "",
     ubicacion: "",
-    sector_economico: "",
     actividad_principal: "",
+    tipo_organizacion: "",
     certificado_pdf: null
   });
 
@@ -33,7 +35,26 @@ const CreateOrganization = () => {
   };
 
   const handleFileChange = (e) => {
-    setForm({ ...form, certificado_pdf: e.target.files[0] });
+    const file = e.target.files[0];
+    
+    if (file) {
+      // Validar que sea PDF
+      if (file.type !== 'application/pdf') {
+        setError('Solo se permiten archivos PDF');
+        e.target.value = '';
+        return;
+      }
+      
+      // Validar tamaño (5MB máximo)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('El archivo PDF no debe superar los 5MB');
+        e.target.value = '';
+        return;
+      }
+      
+      setError('');
+      setForm({ ...form, certificado_pdf: file });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -41,21 +62,48 @@ const CreateOrganization = () => {
     setError("");
     setLoading(true);
 
-    // Validación
-    if (!form.nombre || !form.representante_legal) {
-      setError("Nombre y representante legal son campos obligatorios");
+    // Validación de campos obligatorios
+    if (!form.nombre || !form.nombre.trim()) {
+      setError("El nombre de la organización es obligatorio");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.nit || !form.nit.trim()) {
+      setError("El NIT es obligatorio");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.representante_legal || !form.representante_legal.trim()) {
+      setError("El representante legal es obligatorio");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.email || !form.email.trim()) {
+      setError("El email de contacto es obligatorio");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.telefono || !form.telefono.trim()) {
+      setError("El teléfono es obligatorio");
       setLoading(false);
       return;
     }
 
     try {
       const formData = new FormData();
-      formData.append("nombre", form.nombre);
-      formData.append("representante_legal", form.representante_legal);
-      formData.append("telefono", form.telefono);
-      formData.append("ubicacion", form.ubicacion);
-      formData.append("sector_economico", form.sector_economico);
-      formData.append("actividad_principal", form.actividad_principal);
+      formData.append("nombre", form.nombre.trim());
+      formData.append("nit", form.nit.trim());
+      formData.append("representante_legal", form.representante_legal.trim());
+      formData.append("email", form.email.trim());
+      formData.append("telefono", form.telefono.trim());
+      
+      if (form.ubicacion) formData.append("ubicacion", form.ubicacion.trim());
+      if (form.actividad_principal) formData.append("actividad_principal", form.actividad_principal.trim());
+      formData.append("tipo_organizacion", form.tipo_organizacion || 'OTRA');
       
       if (form.certificado_pdf) {
         formData.append("certificado_pdf", form.certificado_pdf);
@@ -64,7 +112,9 @@ const CreateOrganization = () => {
       const result = await createOrganization(formData);
 
       if (result.success) {
-        alert("Organización creada exitosamente 🎉");
+        // Mostrar resumen de datos registrados
+        const resumen = `\n✅ Organización registrada exitosamente\n\nDatos guardados:\n- Nombre: ${form.nombre}\n- NIT: ${form.nit}\n- Representante Legal: ${form.representante_legal}\n- Email: ${form.email}\n- Teléfono: ${form.telefono}${form.certificado_pdf ? '\n- Certificado PDF: Adjuntado' : ''}`;
+        alert(resumen);
         navigate("/organizations");
       } else {
         setError(result.message || "Error al crear la organización");
@@ -119,13 +169,41 @@ const CreateOrganization = () => {
 
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="telefono">Teléfono</label>
+            <label htmlFor="nit">NIT *</label>
+            <input
+              type="text"
+              id="nit"
+              name="nit"
+              value={form.nit}
+              onChange={handleChange}
+              required
+              placeholder="Número de identificación"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="email">Email de contacto *</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              required
+              placeholder="contacto@organizacion.com"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="telefono">Teléfono *</label>
             <input
               type="tel"
               id="telefono"
               name="telefono"
               value={form.telefono}
               onChange={handleChange}
+              required
               placeholder="Ej: 3001234567"
             />
           </div>
@@ -144,24 +222,6 @@ const CreateOrganization = () => {
 
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="sector_economico">Sector Económico</label>
-            <select
-              id="sector_economico"
-              name="sector_economico"
-              value={form.sector_economico}
-              onChange={handleChange}
-            >
-              <option value="">Seleccionar sector</option>
-              <option value="Tecnología">Tecnología</option>
-              <option value="Educación">Educación</option>
-              <option value="Salud">Salud</option>
-              <option value="Financiero">Financiero</option>
-              <option value="Manufactura">Manufactura</option>
-              <option value="Servicios">Servicios</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div className="form-group">
             <label htmlFor="actividad_principal">Actividad Principal</label>
             <input
               type="text"
@@ -171,6 +231,24 @@ const CreateOrganization = () => {
               onChange={handleChange}
               placeholder="Descripción de la actividad principal"
             />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="tipo_organizacion">Tipo de organización</label>
+            <select
+              id="tipo_organizacion"
+              name="tipo_organizacion"
+              value={form.tipo_organizacion || ''}
+              onChange={handleChange}
+            >
+              <option value="">Seleccionar tipo</option>
+              <option value="ENTIDAD">Entidad</option>
+              <option value="EMPRESA">Empresa</option>
+              <option value="ONG">ONG</option>
+              <option value="OTRA">Otra</option>
+            </select>
           </div>
         </div>
 

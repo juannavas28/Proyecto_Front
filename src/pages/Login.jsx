@@ -23,14 +23,24 @@ const Login = () => {
     setLoading(true);
 
     // Validación simple
-    if (!correo || !contrasena) {
-      setError("Por favor completa todos los campos");
+    const cCorreo = (correo || "").trim();
+    const cContrasena = contrasena || "";
+
+    if (!cCorreo || !cContrasena.replace(/\s/g, "")) {
+      setError("Por favor completa todos los campos (sin dejar sólo espacios)");
+      setLoading(false);
+      return;
+    }
+
+    // Validar que sea correo institucional @uao.edu.co
+    if (!cCorreo.endsWith('@uao.edu.co')) {
+      setError("Solo se permiten correos institucionales (@uao.edu.co)");
       setLoading(false);
       return;
     }
 
     try {
-      const result = await loginUser(correo, contrasena);
+      const result = await loginUser(cCorreo, cContrasena);
 
       if (result.success) {
         alert("Inicio de sesión exitoso 🚀");
@@ -56,7 +66,7 @@ const Login = () => {
           <input
             className="field-input"
             type="email"
-            placeholder="Ingrese su correo"
+            placeholder="usuario@uao.edu.co"
             value={correo}
             onChange={(e) => setCorreo(e.target.value)}
           />

@@ -16,8 +16,8 @@ const Inicio = () => {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      // Cargar todos los eventos (o solo aprobados si prefieres)
-      const result = await getEventsByStatus(null, 1, 20);
+      // Cargar solo eventos aprobados que todos pueden ver
+      const result = await getEventsByStatus('aprobado', 1, 20);
       
       if (result.success) {
         setEvents(result.data.events);
@@ -60,14 +60,16 @@ const Inicio = () => {
               events.map((event) => (
                 <div key={event.id} className="card">
                   <div className="card-header">
-                    <h3>{event.titulo}</h3>
+                    <h3>{event.nombre_evento || event.titulo}</h3>
                   </div>
                   <div className="card-content">
                     <p className="event-description">{event.descripcion}</p>
                     <div className="event-info">
                       <p><strong>Tipo:</strong> {event.tipo === 'academico' ? 'Académico' : 'Lúdico'}</p>
-                      <p><strong>Fecha:</strong> {formatDate(event.fecha_inicio)}</p>
-                      <p><strong>Lugar:</strong> {event.lugar}</p>
+                      <p><strong>Fecha inicio:</strong> {event.fecha_inicio ? formatDate(event.fecha_inicio) : ''}</p>
+                      <p><strong>Lugar:</strong> {event.ubicacion || event.lugar}</p>
+                      {event.organizacion_nombre && <p><strong>Organización:</strong> {event.organizacion_nombre}</p>}
+                      {event.organizador_nombre && <p><strong>Organizador:</strong> {event.organizador_nombre} {event.organizador_apellido || ''}</p>}
                     </div>
                     <Link to={`/events/${event.id}`} className="btn-ver-detalles">
                       Ver Detalles

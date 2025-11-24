@@ -9,11 +9,13 @@ const EditOrganization = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     nombre: "",
+    nit: "",
     representante_legal: "",
     telefono: "",
+    email: "",
     ubicacion: "",
-    sector_economico: "",
     actividad_principal: "",
+    tipo_organizacion: "",
     certificado_pdf: ""
   });
   const [loading, setLoading] = useState(true);
@@ -34,11 +36,13 @@ const EditOrganization = () => {
         const org = result.data.organization;
         setForm({
           nombre: org.nombre || "",
+          nit: org.nit || "",
           representante_legal: org.representante_legal || "",
           telefono: org.telefono || "",
+          email: org.email || "",
           ubicacion: org.ubicacion || "",
-          sector_economico: org.sector_economico || "",
           actividad_principal: org.actividad_principal || "",
+          tipo_organizacion: org.tipo_organizacion || "",
           certificado_pdf: org.certificado_pdf || ""
         });
       } else {
@@ -75,9 +79,29 @@ const EditOrganization = () => {
     setSuccess("");
     setSaving(true);
 
-    // Validación básica
-    if (!form.nombre.trim() || !form.representante_legal.trim()) {
-      setError("El nombre y el representante legal son campos obligatorios");
+    // Validación de campos obligatorios
+    if (!form.nombre || !form.nombre.trim()) {
+      setError("El nombre de la organización es obligatorio");
+      setSaving(false);
+      return;
+    }
+    if (!form.nit || !form.nit.trim()) {
+      setError("El NIT es obligatorio");
+      setSaving(false);
+      return;
+    }
+    if (!form.representante_legal || !form.representante_legal.trim()) {
+      setError("El representante legal es obligatorio");
+      setSaving(false);
+      return;
+    }
+    if (!form.email || !form.email.trim()) {
+      setError("El email es obligatorio");
+      setSaving(false);
+      return;
+    }
+    if (!form.telefono || !form.telefono.trim()) {
+      setError("El teléfono es obligatorio");
       setSaving(false);
       return;
     }
@@ -198,13 +222,40 @@ const EditOrganization = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="telefono">Teléfono</label>
+                  <label htmlFor="nit">NIT *</label>
+                  <input
+                    type="text"
+                    id="nit"
+                    name="nit"
+                    value={form.nit}
+                    onChange={handleChange}
+                    required
+                    placeholder="Número de identificación"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="email">Email de Contacto *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                    placeholder="contacto@organizacion.com"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="telefono">Teléfono *</label>
                   <input
                     type="tel"
                     id="telefono"
                     name="telefono"
                     value={form.telefono}
                     onChange={handleChange}
+                    required
                     placeholder="Ej: 3001234567"
                   />
                 </div>
@@ -227,24 +278,18 @@ const EditOrganization = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="sector_economico">Sector Económico</label>
+                  <label htmlFor="tipo_organizacion">Tipo de Organización</label>
                   <select
-                    id="sector_economico"
-                    name="sector_economico"
-                    value={form.sector_economico}
+                    id="tipo_organizacion"
+                    name="tipo_organizacion"
+                    value={form.tipo_organizacion}
                     onChange={handleChange}
                   >
-                    <option value="">Seleccionar sector</option>
-                    <option value="Tecnología">Tecnología</option>
-                    <option value="Educación">Educación</option>
-                    <option value="Salud">Salud</option>
-                    <option value="Financiero">Financiero</option>
-                    <option value="Manufactura">Manufactura</option>
-                    <option value="Servicios">Servicios</option>
-                    <option value="Comercio">Comercio</option>
-                    <option value="Construcción">Construcción</option>
-                    <option value="Agropecuario">Agropecuario</option>
-                    <option value="Otro">Otro</option>
+                    <option value="">Seleccionar tipo</option>
+                    <option value="ENTIDAD">Entidad</option>
+                    <option value="EMPRESA">Empresa</option>
+                    <option value="ONG">ONG</option>
+                    <option value="OTRA">Otra</option>
                   </select>
                 </div>
 

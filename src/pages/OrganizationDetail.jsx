@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getOrganizationById } from "../services/organizationService";
+import { getStoredUser } from "../services/authService";
 import MainNavbar from "../components/MainNavbar";
 import "./OrganizationDetail.css";
 
@@ -10,6 +11,7 @@ const OrganizationDetail = () => {
   const [organization, setOrganization] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const user = getStoredUser();
 
   useEffect(() => {
     loadOrganization();
@@ -186,12 +188,14 @@ const OrganizationDetail = () => {
               </div>
             </div>
             
-            {/* Botón de editar integrado en el contenido */}
-            <div className="info-edit-button">
-              <Link to={`/organizations/${id}/edit`} className="btn-edit">
-                ✏️ Editar Organización
-              </Link>
-            </div>
+            {/* Botón de editar - para el creador o el secretario */}
+            {(organization.creado_por === user?.id || user?.rol?.toUpperCase() === 'SECRETARIO') && (
+              <div className="info-edit-button">
+                <Link to={`/organizations/${id}/edit`} className="btn-edit">
+                  ✏️ Editar Organización
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 

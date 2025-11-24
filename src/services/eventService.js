@@ -1,9 +1,12 @@
 // src/services/eventService.js
 import axios from "axios";
 
-// ✅ Configuración de API para eventos (usa variable de entorno)
+// ✅ Configuración de API para eventos con fallback VITE_API_URL
+const API_BASE = (import.meta?.env?.VITE_API_URL)
+  || (typeof window !== 'undefined' && window.__API_URL__)
+  || 'http://localhost:3000';
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/api/events`,
+  baseURL: `${API_BASE}/api/events`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -24,7 +27,27 @@ api.interceptors.request.use(
 // HU1.1 - Registro de evento
 export const createEvent = async (eventData) => {
   try {
-    const response = await api.post("/", eventData); // ✅ ya no repite /events
+    // Soportar FormData (archivos) y objetos planos
+    if (eventData instanceof FormData) {
+      // Normalizar clave 'titulo' -> 'nombre_evento' si existe
+      if (eventData.has('titulo') && !eventData.has('nombre_evento')) {
+        const val = eventData.get('titulo');
+        eventData.delete('titulo');
+        eventData.append('nombre_evento', val);
+      }
+      const response = await api.post("/", eventData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    }
+
+    // objeto plano
+    const payload = { ...eventData };
+    if (payload.titulo && !payload.nombre_evento) {
+      payload.nombre_evento = payload.titulo;
+      delete payload.titulo;
+    }
+    const response = await api.post("/", payload);
     return response.data;
   } catch (error) {
     console.error("Error al crear evento:", error);
@@ -46,7 +69,8 @@ export const updateEvent = async (id, eventData) => {
 // HU1.5 - Envío de evento a validación/aprobación
 export const submitEventForValidation = async (id) => {
   try {
-    const response = await api.post(`/${id}/submit-validation`); // ✅ ruta coherente
+    // Ruta en el backend: POST /:id/enviar
+    const response = await api.post(`/${id}/enviar`);
     return response.data;
   } catch (error) {
     console.error("Error al enviar evento a validación:", error);
@@ -82,12 +106,57 @@ export const getEventsByStatus = async (estado = null, page = 1, limit = 10) => 
 // Obtener todos los eventos del usuario actual
 export const getUserEvents = async (page = 1, limit = 10) => {
   try {
-    const response = await api.get("/", {
+    // En el backend el endpoint para eventos del usuario es GET /mis
+    const response = await api.get(`/mis`, {
       params: { page, limit },
     });
     return response.data;
   } catch (error) {
     console.error("Error al obtener eventos del usuario:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// Eliminar evento
+export const deleteEvent = async (id) => {
+  try {
+    const response = await api.delete(`/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error al eliminar evento:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// Aprobar evento (SECRETARIO)
+export const approveEvent = async (id, justificacion = "") => {
+  try {
+    const response = await api.post(`/${id}/aprobar`, { justificacion });
+    return response.data;
+  } catch (error) {
+    console.error("Error al aprobar evento:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// Rechazar evento (SECRETARIO)
+export const rejectEvent = async (id, justificacion) => {
+  try {
+    const response = await api.post(`/${id}/rechazar`, { justificacion });
+    return response.data;
+  } catch (error) {
+    console.error("Error al rechazar evento:", error);
+    throw error.response?.data || { message: "Error al conectar con el servidor" };
+  }
+};
+
+// Obtener eventos pendientes de evaluación (SECRETARIO)
+export const getPendingEvents = async () => {
+  try {
+    const response = await api.get("/pendientes");
+    return response.data;
+  } catch (error) {
+    console.error("Error al obtener eventos pendientes:", error);
     throw error.response?.data || { message: "Error al conectar con el servidor" };
   }
 };
