@@ -10,6 +10,7 @@ const CreateOrganization = () => {
     nombre: "",
     nit: "",
     representante_legal: "",
+    persona_responsable: "",
     telefono: "",
     email: "",
     ubicacion: "",
@@ -81,6 +82,12 @@ const CreateOrganization = () => {
       return;
     }
 
+    if (!form.persona_responsable || !form.persona_responsable.trim()) {
+      setError("La persona responsable es obligatoria");
+      setLoading(false);
+      return;
+    }
+
     if (!form.email || !form.email.trim()) {
       setError("El email de contacto es obligatorio");
       setLoading(false);
@@ -89,6 +96,18 @@ const CreateOrganization = () => {
 
     if (!form.telefono || !form.telefono.trim()) {
       setError("El teléfono es obligatorio");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.persona_responsable || !form.persona_responsable.trim()) {
+      setError("La persona responsable es obligatoria");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.certificado_pdf) {
+      setError("El certificado PDF (aval) es obligatorio");
       setLoading(false);
       return;
     }
@@ -163,6 +182,18 @@ const CreateOrganization = () => {
               onChange={handleChange}
               required
               placeholder="Nombre completo del representante"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="persona_responsable">Persona Responsable/Asistente al Evento *</label>
+            <input
+              type="text"
+              id="persona_responsable"
+              name="persona_responsable"
+              value={form.persona_responsable}
+              onChange={handleChange}
+              required
+              placeholder="Nombre de quien asistirá al evento"
             />
           </div>
         </div>
@@ -253,15 +284,16 @@ const CreateOrganization = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="certificado_pdf">Certificado PDF (Opcional)</label>
+          <label htmlFor="certificado_pdf">Certificado PDF (Aval) *</label>
           <input
             type="file"
             id="certificado_pdf"
             name="certificado_pdf"
             accept=".pdf"
             onChange={handleFileChange}
+            required
           />
-          <small>Formatos permitidos: PDF (máximo 5MB)</small>
+          <small>Formatos permitidos: PDF (máximo 5MB) - Obligatorio</small>
         </div>
 
         {error && <div className="error-message">{error}</div>}

@@ -20,26 +20,37 @@ const CreateEvent = () => {
     // acta_comite_pdf removed per request
   });
 
+  const [selectedOrganizations, setSelectedOrganizations] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
+  const [lugares, setLugares] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [selectedParticipantes, setSelectedParticipantes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingLugares, setLoadingLugares] = useState(true);
   const [error, setError] = useState("");
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [newOrg, setNewOrg] = useState({
     nombre: "",
     nit: "",
     representante_legal: "",
+    persona_responsable: "",
     telefono: "",
     email: "",
     ubicacion: "",
     actividad_principal: "",
-    tipo_organizacion: ""
+    tipo_organizacion: "",
+    certificado_pdf: null
   });
   const navigate = useNavigate();
   const user = getStoredUser();
 
   useEffect(() => {
     loadOrganizations();
+    loadUsers();
+    loadLugares();
   }, []);
 
   const loadOrganizations = async () => {
@@ -53,6 +64,42 @@ const CreateEvent = () => {
       console.error("Error al cargar organizaciones:", err);
     } finally {
       setLoadingOrgs(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3000/api/auth/users", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json();
+      if (result.success) {
+        setUsers(result.data);
+      }
+    } catch (err) {
+      console.error("Error al cargar usuarios:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const loadLugares = async () => {
+    try {
+      setLoadingLugares(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3000/api/lugares", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json();
+      if (result.success) {
+        setLugares(result.data);
+      }
+    } catch (err) {
+      console.error("Error al cargar lugares:", err);
+    } finally {
+      setLoadingLugares(false);
     }
   };
 
@@ -82,6 +129,17 @@ const CreateEvent = () => {
     setForm({ ...form, [name]: file });
   };
 
+  const handleOrganizationSelect = (e) => {
+    const orgId = e.target.value;
+    if (orgId && !selectedOrganizations.includes(orgId)) {
+      setSelectedOrganizations([...selectedOrganizations, orgId]);
+    }
+  };
+
+  const removeOrganization = (orgId) => {
+    setSelectedOrganizations(selectedOrganizations.filter(id => id !== orgId));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -92,10 +150,16 @@ const CreateEvent = () => {
     const descripcion = (form.descripcion || "").trim();
     const fecha_inicio = form.fecha_inicio;
     const fecha_fin = form.fecha_fin;
-    const ubicacion = (form.ubicacion || "").trim();
 
-    if (!nombre_evento || !descripcion || !fecha_inicio || !fecha_fin || !ubicacion) {
-      setError("Campos obligatorios: Título, Descripción, Fecha inicio, Fecha fin y Lugar. No dejes sólo espacios.");
+    // Validar al menos una ubicación
+    if (ubicaciones.length === 0) {
+      setError("Debes seleccionar al menos un lugar para el evento");
+      setLoading(false);
+      return;
+    }
+
+    if (!nombre_evento || !descripcion || !fecha_inicio || !fecha_fin) {
+      setError("Campos obligatorios: Título, Descripción, Fechas y al menos un lugar.");
       setLoading(false);
       return;
     }
@@ -118,30 +182,44 @@ const CreateEvent = () => {
       // Construir payload o FormData (si hay archivo de aval)
       let result;
       if (form.aval_pdf) {
+        console.log("📤 Enviando con FormData (hay PDF)");
         const formData = new FormData();
         formData.append("nombre_evento", nombre_evento);
         formData.append("descripcion", descripcion);
         formData.append("tipo", form.tipo);
         formData.append("fecha_inicio", fecha_inicio);
         formData.append("fecha_fin", fecha_fin);
-        formData.append("ubicacion", ubicacion);
+        formData.append("ubicaciones", JSON.stringify(ubicaciones));
+        formData.append("organizaciones", JSON.stringify(selectedOrganizations));
+        formData.append("participantes", JSON.stringify(selectedParticipantes));
         if (form.unidad_academica_id) formData.append("unidad_academica_id", form.unidad_academica_id);
-        if (form.organizacion_externa_id) formData.append("organizacion_externa_id", form.organizacion_externa_id);
         formData.append("aval_pdf", form.aval_pdf);
+        
+        console.log("📋 Datos a enviar:");
+        console.log("  - Ubicaciones:", ubicaciones);
+        console.log("  - Organizaciones:", selectedOrganizations);
+        console.log("  - PDF:", form.aval_pdf.name);
+        
         result = await createEvent(formData);
       } else {
+        console.log("📤 Enviando con JSON (sin PDF)");
         const payload = {
           nombre_evento,
           descripcion,
           tipo: form.tipo,
           fecha_inicio,
           fecha_fin,
-          ubicacion,
-          unidad_academica_id: form.unidad_academica_id || null,
-          organizacion_externa_id: form.organizacion_externa_id || null
+          ubicaciones: ubicaciones,
+          organizaciones: selectedOrganizations,
+          participantes: selectedParticipantes,
+          unidad_academica_id: form.unidad_academica_id || null
         };
+        
+        console.log("📋 Payload:", payload);
         result = await createEvent(payload);
       }
+      
+      console.log("✅ Respuesta del servidor:", result);
 
       if (result.success) {
         alert("Evento creado exitosamente 🎉");
@@ -236,31 +314,112 @@ const CreateEvent = () => {
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="ubicacion">Lugar *</label>
-            <input
-              type="text"
-              id="ubicacion"
-              name="ubicacion"
-              value={form.ubicacion}
-              onChange={handleChange}
-              required
-              placeholder="Ej: Auditorio Principal, Universidad"
-            />
-          </div>
+        {/* Selección de Lugares Predefinidos */}
+        <div className="form-group">
+          <label>Lugares del Evento *</label>
+          
+          {/* Lugares seleccionados */}
+          {ubicaciones.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              {ubicaciones.map((lugarId, index) => {
+                const lugar = lugares.find(l => l.id === parseInt(lugarId));
+                return lugar ? (
+                  <div key={index} style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '6px 12px', 
+                    background: '#fff3e0', 
+                    borderRadius: '4px', 
+                    marginRight: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <span>{lugar.nombre} ({lugar.capacidad} personas)</span>
+                    <button
+                      type="button"
+                      onClick={() => setUbicaciones(ubicaciones.filter((_, i) => i !== index))}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        color: '#666'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+          
+          <select
+            onChange={(e) => {
+              const lugarId = e.target.value;
+              if (lugarId && !ubicaciones.includes(lugarId)) {
+                setUbicaciones([...ubicaciones, lugarId]);
+              }
+              e.target.value = "";
+            }}
+            disabled={loadingLugares}
+            value=""
+          >
+            <option value="">Seleccionar lugar</option>
+            {lugares.map((lugar) => (
+              <option key={lugar.id} value={lugar.id}>
+                {lugar.nombre} - {lugar.capacidad} personas
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Organización Externa */}
+        {/* Múltiples Organizaciones Externas */}
         <div className="form-group">
-          <label htmlFor="organizacion_externa_id">Organización Externa (Opcional)</label>
+          <label htmlFor="organizacion_select">Organizaciones Externas (Opcional)</label>
+          
+          {/* Organizaciones seleccionadas */}
+          {selectedOrganizations.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              {selectedOrganizations.map(orgId => {
+                const org = organizations.find(o => o.id === parseInt(orgId));
+                return org ? (
+                  <div key={orgId} style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '6px 12px', 
+                    background: '#e3f2fd', 
+                    borderRadius: '4px', 
+                    marginRight: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <span>{org.nombre}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeOrganization(orgId)}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        color: '#666'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+          
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select
-              id="organizacion_externa_id"
-              name="organizacion_externa_id"
-              value={form.organizacion_externa_id}
-              onChange={handleChange}
+              id="organizacion_select"
+              onChange={handleOrganizationSelect}
               disabled={loadingOrgs}
+              value=""
               style={{ flex: 1 }}
             >
               <option value="">Seleccionar organización (opcional)</option>
@@ -278,6 +437,67 @@ const CreateEvent = () => {
               {showCreateOrg ? 'Cancelar' : 'Nueva Organización'}
             </button>
           </div>
+        </div>
+
+        {/* Participantes (Docentes y Estudiantes) */}
+        <div className="form-group">
+          <label htmlFor="participantes_select">Participantes (Docentes y Estudiantes)</label>
+          
+          {/* Participantes seleccionados */}
+          {selectedParticipantes.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              {selectedParticipantes.map(userId => {
+                const usuario = users.find(u => u.id === parseInt(userId));
+                return usuario ? (
+                  <div key={userId} style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '6px 12px', 
+                    background: '#f3e5f5', 
+                    borderRadius: '4px', 
+                    marginRight: '8px',
+                    marginBottom: '8px'
+                  }}>
+                    <span>{usuario.nombre} {usuario.apellido} ({usuario.rol})</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedParticipantes(selectedParticipantes.filter(id => id !== userId))}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        color: '#666'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+          
+          <select
+            id="participantes_select"
+            onChange={(e) => {
+              const userId = e.target.value;
+              if (userId && !selectedParticipantes.includes(userId)) {
+                setSelectedParticipantes([...selectedParticipantes, userId]);
+              }
+              e.target.value = "";
+            }}
+            disabled={loadingUsers}
+            value=""
+          >
+            <option value="">Seleccionar participante (opcional)</option>
+            {users.map((usuario) => (
+              <option key={usuario.id} value={usuario.id}>
+                {usuario.nombre} {usuario.apellido} - {usuario.rol} {usuario.programa_academico ? `(${usuario.programa_academico})` : usuario.facultad ? `(${usuario.facultad})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Formulario inline para crear organización */}
@@ -315,12 +535,32 @@ const CreateEvent = () => {
                 />
               </div>
               <div className="form-group">
+                <label>Persona Responsable/Asistente al Evento *</label>
+                <input 
+                  type="text" 
+                  value={newOrg.persona_responsable} 
+                  onChange={(e) => setNewOrg({...newOrg, persona_responsable: e.target.value})}
+                  placeholder="Nombre de quien asistirá al evento"
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
                 <label>Email *</label>
                 <input 
                   type="email" 
                   value={newOrg.email} 
                   onChange={(e) => setNewOrg({...newOrg, email: e.target.value})}
                   placeholder="email@organizacion.com"
+                />
+              </div>
+              <div className="form-group">
+                <label>Teléfono *</label>
+                <input 
+                  type="tel" 
+                  value={newOrg.telefono} 
+                  onChange={(e) => setNewOrg({...newOrg, telefono: e.target.value})}
+                  placeholder="3001234567"
                 />
               </div>
             </div>
@@ -348,13 +588,48 @@ const CreateEvent = () => {
                 </select>
               </div>
             </div>
+            <div className="form-group" style={{ marginTop: '12px' }}>
+              <label>Certificado PDF *</label>
+              <input 
+                type="file" 
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    if (file.type !== 'application/pdf') {
+                      alert('Solo se permiten archivos PDF');
+                      e.target.value = '';
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert('El archivo PDF no debe superar los 5MB');
+                      e.target.value = '';
+                      return;
+                    }
+                    setNewOrg({...newOrg, certificado_pdf: file});
+                  }
+                }}
+              />
+              <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                Sube el certificado de la organización (PDF, máximo 5MB)
+              </small>
+              {newOrg.certificado_pdf && (
+                <div style={{ marginTop: '6px', color: 'green', fontSize: '14px' }}>
+                  ✓ Archivo seleccionado: {newOrg.certificado_pdf.name}
+                </div>
+              )}
+            </div>
             <button 
               type="button" 
               className="btn-create-org" 
               onClick={async () => {
                 try {
-                  if (!newOrg.nombre || !newOrg.nit || !newOrg.representante_legal || !newOrg.email || !newOrg.telefono) {
+                  if (!newOrg.nombre || !newOrg.nit || !newOrg.representante_legal || !newOrg.persona_responsable || !newOrg.email || !newOrg.telefono) {
                     setError('Todos los campos obligatorios de la organización deben estar completos');
+                    return;
+                  }
+                  if (!newOrg.certificado_pdf) {
+                    setError('Debes adjuntar el certificado PDF de la organización');
                     return;
                   }
                   const formData = new FormData();
@@ -364,7 +639,7 @@ const CreateEvent = () => {
                     setOrganizations([...organizations, res.data.organization]);
                     setForm({...form, organizacion_externa_id: res.data.organization.id});
                     setShowCreateOrg(false);
-                    setNewOrg({ nombre: '', nit: '', representante_legal: '', telefono: '', email: '', ubicacion: '', actividad_principal: '', tipo_organizacion: '' });
+                    setNewOrg({ nombre: '', nit: '', representante_legal: '', persona_responsable: '', telefono: '', email: '', ubicacion: '', actividad_principal: '', tipo_organizacion: '' });
                     alert('Organización creada y seleccionada exitosamente');
                   }
                 } catch (err) {

@@ -45,12 +45,28 @@ api.interceptors.response.use(
 //
 export const registerUser = async (userData) => {
   try {
+    // Si userData es FormData, enviarlo directamente
+    if (userData instanceof FormData) {
+      console.log("📤 Enviando datos de registro con archivo PDF");
+      
+      // Para FormData, no usar interceptor de Content-Type
+      const resp = await axios.post(`${API_BASE}/api/auth/register`, userData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return resp.data;
+    }
+
+    // Si es objeto normal, construir payload JSON
     const payload = {
       nombre: userData.nombre,
       apellido: userData.apellido,
       correo: userData.correo,
       telefono: userData.telefono,
       contraseña: userData.contrasena,
+      facultad: userData.facultad,
+      programa_academico: userData.programa_academico,
       // El backend espera un campo 'rol' como texto (DOCENTE | ESTUDIANTE | SECRETARIO)
       rol: (function() {
         if (userData.rol) return String(userData.rol).toUpperCase();

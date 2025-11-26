@@ -176,20 +176,6 @@ const PendingEvents = () => {
                       <Link to={`/events/${event.id}`} className="btn-secondary">
                         Ver Detalles
                       </Link>
-                      <button 
-                        className="btn-primary" 
-                        onClick={() => handleApproveClick(event.id, event.nombre_evento)}
-                        disabled={processing}
-                      >
-                        Aprobar
-                      </button>
-                      <button 
-                        className="btn-delete" 
-                        onClick={() => handleRejectClick(event.id, event.nombre_evento)}
-                        disabled={processing}
-                      >
-                        Rechazar
-                      </button>
                     </div>
                   </div>
                 ))}

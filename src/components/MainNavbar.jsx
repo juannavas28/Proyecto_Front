@@ -39,14 +39,14 @@ const MainNavbar = () => {
     return location.pathname === '/EditarPerfil';
   };
 
-  // Cargar contador de eventos pendientes para SECRETARIO
+  // Cargar contador de eventos pendientes para SECRETARIO (solo al montar el componente)
   useEffect(() => {
     if (user?.rol?.toUpperCase() === 'SECRETARIO') {
       getPendingEvents()
         .then(result => setPendingCount(result?.data?.total || 0))
         .catch(() => setPendingCount(0));
     }
-  }, [user, location.pathname]); // Actualiza al cambiar de página
+  }, []); // Solo se ejecuta una vez al cargar
 
   return (
     <nav className="main-navbar">

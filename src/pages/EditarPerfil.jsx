@@ -13,6 +13,9 @@ const EditarPerfil = () => {
   const [confirmarContrasena, setConfirmarContrasena] = useState("");
   const [telefono, setTelefono] = useState("");
   const [rol, setRol] = useState("");
+  const [facultad, setFacultad] = useState("");
+  const [programaAcademico, setProgramaAcademico] = useState("");
+  const [avalPdf, setAvalPdf] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -39,6 +42,9 @@ const EditarPerfil = () => {
           setCorreo(user.correo || "");
               setTelefono(user.telefono || "");
           setRol(user.rol || "");
+          setFacultad(user.facultad || "");
+          setProgramaAcademico(user.programa_academico || "");
+          setAvalPdf(user.aval_pdf || "");
         } else {
           const user = getStoredUser();
           if (user) {
@@ -47,6 +53,9 @@ const EditarPerfil = () => {
             setCorreo(user.correo || "");
                 setTelefono(user.telefono || "");
             setRol(user.rol || "");
+            setFacultad(user.facultad || "");
+            setProgramaAcademico(user.programa_academico || "");
+            setAvalPdf(user.aval_pdf || "");
           }
         }
       } catch (error) {
@@ -55,6 +64,9 @@ const EditarPerfil = () => {
           setNombre(user.nombre || "");
           setCorreo(user.correo || "");
           setRol(user.rol || "");
+          setFacultad(user.facultad || "");
+          setProgramaAcademico(user.programa_academico || "");
+          setAvalPdf(user.aval_pdf || "");
         }
       }
     } catch (err) {
@@ -118,12 +130,47 @@ const EditarPerfil = () => {
         }
       }
 
+      // Si hay PDF para subir (solo para docentes/secretarios sin verificar)
+      const fileInput = document.getElementById('aval-pdf-input');
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const formData = new FormData();
+        formData.append('aval_pdf', fileInput.files[0]);
+        
+        try {
+          const response = await fetch(`http://localhost:3000/api/auth/upload-aval`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+          });
+          
+          const pdfResult = await response.json();
+          if (pdfResult.success) {
+            setAvalPdf(pdfResult.data.filename);
+          } else {
+            setError('Error al subir el PDF: ' + pdfResult.message);
+            setSaving(false);
+            return;
+          }
+        } catch (error) {
+          setError('Error al subir el archivo PDF');
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload = { nombre: nNombre, apellido: nApellido, telefono: nTelefono, correo: nCorreo };
       const result = await updateProfile(payload);
 
       if (result.success) {
         // Mensaje base
         let msg = "✅ Perfil actualizado correctamente";
+        
+        // Si se subió PDF, agregar mensaje
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          msg += " - Tu cuenta ha sido verificada exitosamente";
+        }
 
         // Si el backend indica que se debe verificar el correo, mostrar info adicional
         const verification = result.data?.verification;
@@ -307,6 +354,34 @@ const EditarPerfil = () => {
             />
           </div>
 
+          {/* Facultad - Solo para Docentes y Secretarios */}
+          {(rol === 'DOCENTE' || rol === 'SECRETARIO') && (
+            <div className="form-group">
+              <label>Facultad:</label>
+              <input
+                type="text"
+                value={facultad || 'No especificada'}
+                disabled
+                className="disabled-input"
+              />
+              <small className="form-help">Este campo no se puede editar (dato institucional)</small>
+            </div>
+          )}
+
+          {/* Programa Académico - Solo para estudiantes */}
+          {rol === 'ESTUDIANTE' && (
+            <div className="form-group">
+              <label>Programa Académico:</label>
+              <input
+                type="text"
+                value={programaAcademico || 'No especificado'}
+                disabled
+                className="disabled-input"
+              />
+              <small className="form-help">Este campo no se puede editar (dato institucional)</small>
+            </div>
+          )}
+
           <div className="form-group">
             <label>Rol:</label>
             <input
@@ -317,6 +392,71 @@ const EditarPerfil = () => {
             />
             <small className="form-help">El rol no se puede modificar</small>
           </div>
+
+          {/* Estado de Verificación - Solo para Docentes y Secretarios */}
+          {(rol === 'DOCENTE' || rol === 'SECRETARIO') && (
+            <div className="form-group">
+              <label>Estado de Verificación:</label>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '10px', 
+                backgroundColor: avalPdf ? '#d4edda' : '#f8d7da',
+                border: `1px solid ${avalPdf ? '#c3e6cb' : '#f5c6cb'}`,
+                borderRadius: '5px',
+                color: avalPdf ? '#155724' : '#721c24',
+                marginBottom: '10px'
+              }}>
+                {avalPdf ? (
+                  <>
+                    <span style={{ fontSize: '20px', marginRight: '10px' }}>✓</span>
+                    <span style={{ fontWeight: 'bold' }}>Verificado - Certificación recibida</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '20px', marginRight: '10px' }}>⚠</span>
+                    <span style={{ fontWeight: 'bold' }}>No verificado - Falta certificación</span>
+                  </>
+                )}
+              </div>
+              
+              {!avalPdf && (
+                <>
+                  <label style={{ marginTop: '10px', display: 'block' }}>Subir Certificación PDF:</label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    id="aval-pdf-input"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        if (file.type !== 'application/pdf') {
+                          alert('Solo se permiten archivos PDF');
+                          e.target.value = '';
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert('El archivo PDF no debe superar los 5MB');
+                          e.target.value = '';
+                          return;
+                        }
+                      }
+                    }}
+                    style={{ marginTop: '5px' }}
+                  />
+                  <small className="form-help">
+                    Sube tu certificación y presiona "Guardar cambios" para verificar tu cuenta (PDF, máximo 5MB)
+                  </small>
+                </>
+              )}
+              
+              {avalPdf && (
+                <small className="form-help">
+                  Tu certificación ha sido validada correctamente
+                </small>
+              )}
+            </div>
+          )}
 
           <div className="form-actions">
             <button

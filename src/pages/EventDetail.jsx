@@ -13,6 +13,7 @@ const EventDetail = () => {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [justificacion, setJustificacion] = useState("");
+  const [pdfAprobacion, setPdfAprobacion] = useState(null);
   const [processing, setProcessing] = useState(false);
   const user = getStoredUser();
 
@@ -48,9 +49,14 @@ const EventDetail = () => {
   };
 
   const handleApprove = async () => {
+    if (!pdfAprobacion) {
+      alert("Debe adjuntar el PDF de aprobación");
+      return;
+    }
+
     try {
       setProcessing(true);
-      const result = await approveEvent(id, justificacion);
+      const result = await approveEvent(id, justificacion, pdfAprobacion);
       if (result.success) {
         alert("Evento aprobado exitosamente");
         window.location.reload();
@@ -63,6 +69,7 @@ const EventDetail = () => {
       setProcessing(false);
       setShowApproveModal(false);
       setJustificacion("");
+      setPdfAprobacion(null);
     }
   };
 
@@ -155,12 +162,71 @@ const EventDetail = () => {
             <div className="detail-item"><strong>Tipo:</strong> {event.tipo === "academico" ? "Académico" : "Lúdico"}</div>
             <div className="detail-item"><strong>Fecha inicio:</strong> {formatDate(event.fecha_inicio)}</div>
             <div className="detail-item"><strong>Fecha fin:</strong> {formatDate(event.fecha_fin)}</div>
-            <div className="detail-item"><strong>Lugar:</strong> {event.ubicacion || event.lugar}</div>
+            {/* Lugares del evento */}
+            {event.ubicaciones && event.ubicaciones.length > 0 && (
+              <div className="detail-item">
+                <strong>Lugares:</strong>
+                <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                  {event.ubicaciones.map((ub, index) => (
+                    <li key={ub.id || index}>
+                      {ub.nombre_lugar || "Lugar sin nombre"}
+                      {ub.capacidad && ` (${ub.capacidad} personas)`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {(!event.ubicaciones || event.ubicaciones.length === 0) && event.ubicacion && (
+              <div className="detail-item">
+                <strong>Lugar:</strong> {event.ubicacion}
+              </div>
+            )}
             {event.organizador_nombre && (
               <div className="detail-item"><strong>Organizador:</strong> {event.organizador_nombre}</div>
             )}
-            {event.organizacion_nombre && (
-              <div className="detail-item"><strong>Organización:</strong> {event.organizacion_nombre}</div>
+            {event.organizaciones && event.organizaciones.length > 0 && (
+              <>
+                <div className="detail-item">
+                  <strong>Organizaciones:</strong>
+                  <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                    {event.organizaciones.map((org) => (
+                      <li key={org.rel_id}>
+                        {org.nombre} - {org.tipo_organizacion}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {event.organizaciones.some(org => org.persona_responsable) && (
+                  <div className="detail-item">
+                    <strong>Personas Asistentes:</strong>
+                    <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                      {event.organizaciones
+                        .filter(org => org.persona_responsable)
+                        .map((org) => (
+                          <li key={`responsable-${org.rel_id}`}>
+                            {org.persona_responsable} - {org.nombre}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Participantes (docentes y estudiantes) */}
+            {event.participantes && event.participantes.length > 0 && (
+              <div className="detail-item">
+                <strong>Participantes:</strong>
+                <ul style={{ marginTop: "0.5rem", paddingLeft: "1.5rem" }}>
+                  {event.participantes.map((part) => (
+                    <li key={`participante-${part.usuario_id}`}>
+                      {part.nombre} {part.apellido} - {part.rol} 
+                      {part.programa_academico && ` (${part.programa_academico})`}
+                      {part.facultad && ` - ${part.facultad}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
@@ -224,6 +290,39 @@ const EventDetail = () => {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <h2>Aprobar Evento</h2>
               <p>¿Está seguro que desea aprobar el evento "{event.nombre_evento}"?</p>
+              
+              <div style={{ marginTop: '15px' }}>
+                <label><strong>PDF de Aprobación (Obligatorio):</strong></label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      if (file.type !== 'application/pdf') {
+                        alert('Solo se permiten archivos PDF');
+                        e.target.value = '';
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('El archivo PDF no debe superar los 5MB');
+                        e.target.value = '';
+                        return;
+                      }
+                      setPdfAprobacion(file);
+                    }
+                  }}
+                  style={{ width: '100%', marginTop: '5px', padding: '8px' }}
+                  required
+                />
+                <small style={{ color: '#666' }}>Formatos permitidos: PDF (máximo 5MB)</small>
+                {pdfAprobacion && (
+                  <div style={{ marginTop: '8px', color: 'green' }}>
+                    ✓ Archivo seleccionado: {pdfAprobacion.name}
+                  </div>
+                )}
+              </div>
+
               <div style={{ marginTop: '15px' }}>
                 <label><strong>Justificación (opcional):</strong></label>
                 <textarea
@@ -235,10 +334,10 @@ const EventDetail = () => {
                 />
               </div>
               <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button className="btn-secondary" onClick={() => setShowApproveModal(false)}>
+                <button className="btn-secondary" onClick={() => { setShowApproveModal(false); setPdfAprobacion(null); }}>
                   Cancelar
                 </button>
-                <button className="btn-primary" onClick={handleApprove} disabled={processing}>
+                <button className="btn-primary" onClick={handleApprove} disabled={processing || !pdfAprobacion}>
                   {processing ? 'Procesando...' : 'Confirmar Aprobación'}
                 </button>
               </div>

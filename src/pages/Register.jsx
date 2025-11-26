@@ -11,8 +11,13 @@ const Register = () => {
     telefono: "",
     contrasena: "",
     rol_id: 1, // Por defecto estudiante
+    facultad: "",
+    programa_academico: "",
   });
 
+  const [avalPdf, setAvalPdf] = useState(null);
+  const [otraFacultad, setOtraFacultad] = useState("");
+  const [otroPrograma, setOtroPrograma] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -62,9 +67,88 @@ const Register = () => {
       return;
     }
 
+    // Validar facultad solo para docentes y secretarios
+    if ((form.rol_id == 2 || form.rol_id == 3)) {
+      if (!form.facultad || form.facultad.trim() === "") {
+        setError("Debe seleccionar una facultad");
+        setLoading(false);
+        return;
+      }
+      
+      if (form.facultad === "OTRO" && (!otraFacultad || otraFacultad.trim() === "")) {
+        setError("Debe escribir el nombre de su facultad");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validar programa académico solo para estudiantes
+    if (form.rol_id == 1) {
+      if (!form.programa_academico || form.programa_academico.trim() === "") {
+        setError("Los estudiantes deben seleccionar un programa académico");
+        setLoading(false);
+        return;
+      }
+      
+      if (form.programa_academico === "OTRO" && (!otroPrograma || otroPrograma.trim() === "")) {
+        setError("Debe escribir el nombre de su programa académico");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validar PDF para docentes y secretarios
+    if ((form.rol_id == 2 || form.rol_id == 3) && !avalPdf) {
+      setError("Los docentes y secretarios deben adjuntar un PDF de aval");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const payload = { ...form, nombre, apellido, correo, telefono };
-      const result = await registerUser(payload);
+      let result;
+      
+      // Preparar payload base
+      const facultadFinal = (form.rol_id == 2 || form.rol_id == 3) 
+        ? (form.facultad === "OTRO" ? otraFacultad.trim() : form.facultad)
+        : null;
+      const programaFinal = form.programa_academico === "OTRO" ? otroPrograma.trim() : form.programa_academico;
+      
+      const payload = { 
+        ...form, 
+        nombre, 
+        apellido, 
+        correo, 
+        telefono,
+        contrasena,
+        facultad: facultadFinal,
+        programa_academico: programaFinal
+      };
+      
+      // Si hay PDF, enviar como FormData
+      if (avalPdf) {
+        const formData = new FormData();
+        
+        // Convertir rol_id a texto
+        const rolMap = { 1: 'ESTUDIANTE', 2: 'DOCENTE', 3: 'SECRETARIO', 4: 'ADMINISTRADOR' };
+        const rolTexto = rolMap[form.rol_id] || 'ESTUDIANTE';
+        
+        // Agregar todos los campos del formulario
+        Object.keys(payload).forEach(key => {
+          if (key !== 'rol_id' && payload[key] !== null && payload[key] !== undefined) {
+            formData.append(key, payload[key]);
+          }
+        });
+        
+        // Agregar rol como texto (no rol_id)
+        formData.append('rol', rolTexto);
+        
+        // Agregar el archivo PDF
+        formData.append('aval_pdf', avalPdf);
+        
+        result = await registerUser(formData);
+      } else {
+        result = await registerUser(payload);
+      }
 
       if (result.success) {
         alert("Usuario registrado exitosamente 🎉");
@@ -160,6 +244,122 @@ const Register = () => {
               <option value={4}>Administrador</option>
             </select>
           </div>
+
+          {/* Aval PDF - Solo para Docentes y Secretarios */}
+          {(form.rol_id == 2 || form.rol_id == 3) && (
+            <div className="row">
+              <label className="field-label">Certificación PDF (Obligatorio)</label>
+              <input
+                className="field-input"
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    if (file.type !== 'application/pdf') {
+                      alert('Solo se permiten archivos PDF');
+                      e.target.value = '';
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      alert('El archivo PDF no debe superar los 5MB');
+                      e.target.value = '';
+                      return;
+                    }
+                    setAvalPdf(file);
+                  }
+                }}
+                required
+              />
+              <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                Sube tu certificación para verificar tu cuenta (PDF, máximo 5MB)
+              </small>
+              {avalPdf && (
+                <div style={{ marginTop: '8px', color: 'green' }}>
+                  ✓ Archivo seleccionado: {avalPdf.name}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Facultad - Solo para Docentes y Secretarios */}
+          {(form.rol_id == 2 || form.rol_id == 3) && (
+            <>
+              <div className="row">
+                <label className="field-label">Facultad</label>
+                <select
+                  className="field-input"
+                  name="facultad"
+                  value={form.facultad}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Selecciona...</option>
+                  <option value="Ingeniería">Ingeniería</option>
+                  <option value="Artes">Artes</option>
+                  <option value="Comunicación">Comunicación</option>
+                  <option value="Diseño">Diseño</option>
+                  <option value="Negocios Internacionales">Negocios Internacionales</option>
+                  <option value="OTRO">Otro (escribir manualmente)</option>
+                </select>
+              </div>
+
+              {/* Campo de texto para otra facultad */}
+              {form.facultad === "OTRO" && (
+                <div className="row">
+                  <label className="field-label">Especifique su facultad</label>
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="Escriba el nombre de su facultad"
+                    value={otraFacultad}
+                    onChange={(e) => setOtraFacultad(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Programa Académico - Solo para estudiantes */}
+          {form.rol_id == 1 && (
+            <>
+              <div className="row">
+                <label className="field-label">Programa Académico</label>
+                <select
+                  className="field-input"
+                  name="programa_academico"
+                  value={form.programa_academico}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Selecciona...</option>
+                  <option value="Ingeniería de Sistemas">Ingeniería de Sistemas</option>
+                  <option value="Ingeniería Civil">Ingeniería Civil</option>
+                  <option value="Matemáticas">Matemáticas</option>
+                  <option value="Física">Física</option>
+                  <option value="Administración de Empresas">Administración de Empresas</option>
+                  <option value="Psicología">Psicología</option>
+                  <option value="OTRO">Otro (escribir manualmente)</option>
+                </select>
+              </div>
+
+              {/* Campo de texto para otro programa */}
+              {form.programa_academico === "OTRO" && (
+                <div className="row">
+                  <label className="field-label">Especifique su programa académico</label>
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="Escriba el nombre de su programa"
+                    value={otroPrograma}
+                    onChange={(e) => setOtroPrograma(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Contraseña */}
           <div className="row">

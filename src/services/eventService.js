@@ -50,7 +50,12 @@ export const createEvent = async (eventData) => {
     const response = await api.post("/", payload);
     return response.data;
   } catch (error) {
-    console.error("Error al crear evento:", error);
+    console.error("❌ Error al crear evento:", error);
+    console.error("Response data:", error.response?.data);
+    console.error("Response status:", error.response?.status);
+    if (error.response?.data?.errors) {
+      console.error("📋 Errores detallados:", error.response.data.errors);
+    }
     throw error.response?.data || { message: "Error al conectar con el servidor" };
   }
 };
@@ -128,10 +133,19 @@ export const deleteEvent = async (id) => {
   }
 };
 
-// Aprobar evento (SECRETARIO)
-export const approveEvent = async (id, justificacion = "") => {
+// Aprobar evento (SECRETARIO) - Requiere PDF
+export const approveEvent = async (id, justificacion = "", pdfFile = null) => {
   try {
-    const response = await api.post(`/${id}/aprobar`, { justificacion });
+    const formData = new FormData();
+    formData.append('justificacion', justificacion);
+    
+    if (pdfFile) {
+      formData.append('pdf_aprobacion', pdfFile);
+    }
+
+    const response = await api.post(`/${id}/aprobar`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   } catch (error) {
     console.error("Error al aprobar evento:", error);
